@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(configurationArgs);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<DashboardRepository>();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseConnectivityCheck>("database", tags: new[] { "database" });
 

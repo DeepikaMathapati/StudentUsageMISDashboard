@@ -6,43 +6,30 @@
     <title>@ViewData["Title"] - StudentUsageMISDashboard</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/StudentUsageMISDashboard.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">StudentUsageMISDashboard</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+    <a class="skip-link" href="#main">Skip to dashboard</a>
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+        <a class="brand" asp-controller="Home" asp-action="Index"><img src="~/images/Logo-Gshala.svg" alt="G-Shala" /></a>
+        <div class="sidebar-caption">STUDENT USAGE MIS</div>
+        <nav class="side-nav">
+            <a class="selected" asp-controller="Home" asp-action="Index"><span aria-hidden="true">▦</span> MIS Dashboard</a>
+            <a href="/#district" data-nav-tab="district"><span aria-hidden="true">▥</span> District Report</a>
+            <a href="/#daily" data-nav-tab="daily"><span aria-hidden="true">↗</span> Daily Trends</a>
+            <a href="/#school" data-nav-tab="school"><span aria-hidden="true">⌂</span> School Report</a>
+            <a href="/#monthly" data-nav-tab="monthly"><span aria-hidden="true">▤</span> Monthly Report</a>
+            <a href="/#yearly" data-nav-tab="yearly"><span aria-hidden="true">▤</span> Yearly Report</a>
         </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+        <div class="sidebar-footer">Education Department<br /><small>Student learning &amp; usage insights</small></div>
+    </aside>
+    <div class="app-shell">
+        <header class="topbar">
+            <button type="button" class="menu-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Toggle navigation">☰</button>
+            <span>G-Shala <span class="topbar-divider">/</span> Student Usage MIS</span>
+            <span class="student-badge">Student dashboard</span>
+        </header>
+        <main id="main" class="main-content">@RenderBody()</main>
     </div>
-
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - StudentUsageMISDashboard - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -1,8 +1,112 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model DashboardViewModel
+@using System.Globalization
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Student Dashboard";
+    var numberCulture = CultureInfo.GetCultureInfo("en-IN");
+    string Number(decimal value) => value.ToString("N0", numberCulture);
+    string Duration(decimal value) => Model.Duration(value).ToString("N2", numberCulture);
+    string ReportUrl(string kind) => Url.Action("Report", "Home", new { kind, From = Model.Filter.From?.ToString("yyyy-MM-dd"), To = Model.Filter.To?.ToString("yyyy-MM-dd"), Model.Filter.UsageType, Model.Filter.Unit })!;
+    var reports = new[] {
+        (Id: "district", Title: "District-wise usage", Label: "District", Rows: Model.Districts),
+        (Id: "daily", Title: "Daily active students & usage", Label: "Date", Rows: Model.Daily),
+        (Id: "school", Title: "School-wise detailed report", Label: "District / School code / School", Rows: Model.SchoolDetails),
+        (Id: "monthly", Title: "Monthly report", Label: "Month", Rows: Model.Monthly),
+        (Id: "yearly", Title: "Yearly report", Label: "Year", Rows: Model.Yearly)
+    };
 }
-
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="dashboard">
+    <div class="dashboard-heading">
+        <div><h1>Dashboard</h1><p>Student learning activity at a glance</p></div>
+        @if (Model.Error is null)
+        {
+            <div class="report-actions">
+                <a class="action-button" href="@ReportUrl("monthly")">Monthly Report ↓</a>
+                <a class="action-button" href="@ReportUrl("yearly")">Yearly Report ↓</a>
+                <a class="action-button" href="@ReportUrl("school")">Detail Report ↓</a>
+            </div>
+        }
+    </div>
+    <form method="get" asp-controller="Home" asp-action="Index" class="filter-bar">
+        <div><label for="from-date">From Date</label><input id="from-date" type="date" name="From" value="@Model.Filter.From?.ToString("yyyy-MM-dd")" required /></div>
+        <div><label for="to-date">To Date</label><input id="to-date" type="date" name="To" value="@Model.Filter.To?.ToString("yyyy-MM-dd")" required /></div>
+        <div><label for="duration-unit">Duration Type</label><select id="duration-unit" name="Unit">
+            @foreach (var unit in new[] { "Minutes", "Hours", "Seconds" }) { <option value="@unit" selected="@(unit == Model.Filter.Unit)">@unit</option> }
+        </select></div>
+        <div><label for="usage-type">Usage Type</label><select id="usage-type" name="UsageType">
+            <option value="All" selected="@(Model.Filter.UsageType == "All")">All</option>
+            @foreach (var type in Model.UsageTypes) { <option value="@type" selected="@(type == Model.Filter.UsageType)">@type</option> }
+        </select></div>
+        <button type="submit" class="action-button">Show</button>
+        <a class="reset-link" asp-controller="Home" asp-action="Index">Reset</a>
+    </form>
+    @if (Model.Error is not null)
+    {
+        <div class="notice error" role="alert">@Model.Error <a asp-action="Index">Reset filters</a></div>
+    }
+    else
+    {
+        <div class="data-caption">@Model.Filter.From?.ToString("dd MMM yyyy") – @Model.Filter.To?.ToString("dd MMM yyyy") <span>·</span> @Model.Filter.UsageType usage <span>·</span> @Number(Model.UsageRecords) records</div>
+        <div class="tabs" role="tablist" aria-label="Dashboard reports">
+            <button id="tab-bucket" role="tab" aria-selected="true" aria-controls="panel-bucket" data-tab="bucket">Bucket-wise data</button>
+            <button id="tab-district" role="tab" aria-selected="false" aria-controls="panel-district" data-tab="district" tabindex="-1">District-wise usage</button>
+            <button id="tab-daily" role="tab" aria-selected="false" aria-controls="panel-daily" data-tab="daily" tabindex="-1">Daily active students &amp; usage</button>
+            <button id="tab-school" role="tab" aria-selected="false" aria-controls="panel-school" data-tab="school" tabindex="-1">School-wise report</button>
+            <button id="tab-monthly" role="tab" aria-selected="false" aria-controls="panel-monthly" data-tab="monthly" tabindex="-1">Monthly</button>
+            <button id="tab-yearly" role="tab" aria-selected="false" aria-controls="panel-yearly" data-tab="yearly" tabindex="-1">Yearly</button>
+        </div>
+        @if (Model.UsageRecords == 0) { <div class="notice">No usage records match these filters. Registration totals remain available.</div> }
+        <section id="panel-bucket" role="tabpanel" aria-labelledby="tab-bucket" class="tab-panel" tabindex="0">
+            <div class="overview-grid">
+                <div class="kpi-grid">
+                    <article class="kpi orange"><span class="kpi-icon" aria-hidden="true">⌂</span><h2>All Schools</h2><strong data-kpi="schools">@Number(Model.Schools)</strong><small>Registered in the database</small></article>
+                    <article class="kpi green"><span class="kpi-icon" aria-hidden="true">♟</span><h2>All Students</h2><strong data-kpi="students">@Number(Model.Students)</strong><small>Registered in the database</small></article>
+                    <article class="kpi wide blue"><div><h2>Active Student Accounts</h2><small>Accounts marked active · all dates</small></div><strong data-kpi="active">@Number(Model.ActiveAccounts)</strong></article>
+                    <article class="kpi wide coral"><div><h2>Students with Usage</h2><small>Distinct students with positive usage · filtered</small></div><strong data-kpi="using">@Number(Model.StudentsWithUsage)</strong></article>
+                    <article class="kpi wide purple"><div><h2>Total Usage</h2><small>@Model.Filter.Unit · selected dates and usage type</small></div><strong data-kpi="duration">@Duration(Model.TotalSeconds)</strong></article>
+                </div>
+                <div class="bucket-card">
+                    <h2>Student usage distribution</h2>
+                    <p>Total usage per student across the selected period</p>
+                    <div id="bucket-chart" class="donut-layout"></div>
+                    <div class="table-scroll"><table class="compact-table"><caption class="visually-hidden">Usage distribution by cumulative minutes</caption><thead><tr><th scope="col">Usage bucket</th><th scope="col">Students</th><th scope="col">Share</th></tr></thead><tbody>
+                        @foreach (var bucket in Model.Buckets)
+                        {
+                            <tr><th scope="row">@bucket.Name</th><td>@Number(bucket.Students)</td><td>@(Model.Students == 0 ? "0.0" : (100m * bucket.Students / Model.Students).ToString("N1", numberCulture))%</td></tr>
+                        }
+                    </tbody></table></div>
+                    <small class="chart-note">Bucket boundaries are always minutes. Students without usage are included.</small>
+                </div>
+            </div>
+        </section>
+        @foreach (var report in reports)
+        {
+            <section id="panel-@report.Id" role="tabpanel" aria-labelledby="tab-@report.Id" class="tab-panel" tabindex="0" hidden>
+                <div class="section-heading"><div><h2>@report.Title</h2><p>Distinct students with positive usage in each row. Usage in @Model.Filter.Unit.ToLowerInvariant().</p></div><a class="action-button" href="@ReportUrl(report.Id)">Download CSV ↓</a></div>
+                @if (report.Id == "district") { <div id="district-chart" class="bar-chart" aria-label="District usage chart"></div> }
+                @if (report.Id == "daily")
+                {
+                    <div class="trend-grid"><div><h3>Daily active students</h3><div id="daily-students-chart" class="trend-chart"></div></div><div><h3>Daily usage (@Model.Filter.Unit.ToLowerInvariant())</h3><div id="daily-usage-chart" class="trend-chart"></div></div></div>
+                    <p class="chart-note">Dates with no records appear as gaps. The table lists dates with recorded usage.</p>
+                }
+                <div class="table-scroll"><table><caption class="visually-hidden">@report.Title</caption><thead><tr><th scope="col">@report.Label</th>
+                    @if (report.Id is "district" or "school") { <th scope="col">Registered students</th> }
+                    <th scope="col">Students with usage</th><th scope="col">Usage (@Model.Filter.Unit.ToLowerInvariant())</th>
+                </tr></thead><tbody>
+                    @foreach (var row in report.Rows)
+                    {
+                        <tr><th scope="row">@row.Name</th>@if (report.Id is "district" or "school") { <td>@Number(row.Registered)</td> }<td>@Number(row.Students)</td><td>@Duration(row.Seconds)</td></tr>
+                    }
+                    @if (report.Rows.Count == 0) { <tr><td colspan="4" class="empty-state">No usage records for this period.</td></tr> }
+                </tbody></table></div>
+            </section>
+        }
+        <footer class="dashboard-footer">Data source: SQL Server <span>·</span> Usage follows the selected filters; registration totals cover all accounts.</footer>
+        <script type="application/json" id="dashboard-data">@Html.Raw(JsonSerializer.Serialize(new {
+            buckets = Model.Buckets.Select(b => new { name = b.Name, value = b.Students }),
+            districts = Model.Districts.Select(d => new { name = d.Name, value = Model.Duration(d.Seconds) }),
+            daily = Model.Daily.Select(d => new { date = d.Name, students = d.Students, usage = Model.Duration(d.Seconds) }),
+            unit = Model.Filter.Unit
+        }))</script>
+    }
+</section>
